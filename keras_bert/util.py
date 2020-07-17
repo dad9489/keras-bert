@@ -17,7 +17,6 @@ __all__ = [
     'get_checkpoint_paths', 'extract_embeddings_generator', 'extract_embeddings',
 ]
 
-
 POOL_NSP = 'POOL_NSP'
 POOL_MAX = 'POOL_MAX'
 POOL_AVE = 'POOL_AVE'
@@ -67,6 +66,13 @@ def extract_embeddings_generator(model,
 
     def _batch_generator():
         tokens, segments = [], []
+        batches = []
+        max_tokens = 0
+
+        def _update_max_tokens(max_tokens):
+            for token in tokens:
+                max_tokens = max(max_tokens, [index for index, item in enumerate(token) if item != 0][-1] + 1)
+            return max_tokens
 
         def _pad_inputs():
             if seq_len is None:
@@ -84,10 +90,14 @@ def extract_embeddings_generator(model,
             tokens.append(token)
             segments.append(segment)
             if len(tokens) == batch_size:
-                yield _pad_inputs()
+                batches.append(_pad_inputs())
+                max_tokens = _update_max_tokens(max_tokens)
                 tokens, segments = [], []
         if len(tokens) > 0:
-            yield _pad_inputs()
+            batches.append(_pad_inputs())
+        max_tokens = _update_max_tokens(max_tokens)
+
+        return batches, max_tokens
 
     if poolings is not None:
         if isinstance(poolings, (str, type(u''))):
@@ -108,16 +118,13 @@ def extract_embeddings_generator(model,
             outputs = keras.layers.Concatenate(name='Concatenate')(outputs)
         model = keras.models.Model(inputs=model.inputs, outputs=outputs)
 
-    for batch_inputs in _batch_generator():
+    batches, max_tokens = _batch_generator()
+
+    for batch_inputs in batches:
         outputs = model.predict(batch_inputs)
         for inputs, output in zip(batch_inputs[0], outputs):
             if poolings is None and cut_embed:
-                length = 0
-                for i in range(len(inputs) - 1, -1, -1):
-                    if inputs[i] != 0:
-                        length = i + 1
-                        break
-                output = output[:length]
+                output = output[:max_tokens]
             yield output
 
 
