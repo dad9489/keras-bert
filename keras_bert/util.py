@@ -37,7 +37,8 @@ def extract_embeddings_generator(model,
                                  cased=False,
                                  batch_size=4,
                                  cut_embed=True,
-                                 output_layer_num=1):
+                                 output_layer_num=1,
+                                 max_tokens=None):
     """Extract embeddings from texts.
 
     :param model: Path to the checkpoint or built model without MLM and NSP.
@@ -50,6 +51,7 @@ def extract_embeddings_generator(model,
     :param cut_embed: The computed embeddings will be cut based on their input lengths.
     :param output_layer_num: The number of layers whose outputs will be concatenated as a single output.
                              Only available when `model` is a path to checkpoint.
+    :param max_tokens: The number of tokens to cut the embedding to, assuming cut_embed is True
     :return: A list of numpy arrays representing the embeddings.
     """
     if isinstance(model, (str, type(u''))):
@@ -118,7 +120,9 @@ def extract_embeddings_generator(model,
             outputs = keras.layers.Concatenate(name='Concatenate')(outputs)
         model = keras.models.Model(inputs=model.inputs, outputs=outputs)
 
-    batches, max_tokens = _batch_generator()
+    batches, max_tokens_found = _batch_generator()
+    if max_tokens is None:  # if max_tokens is not provided, set value using max tokens found in data
+        max_tokens = max_tokens_found
 
     for batch_inputs in batches:
         outputs = model.predict(batch_inputs)
