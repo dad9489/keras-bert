@@ -139,7 +139,8 @@ def extract_embeddings(model,
                        cased=False,
                        batch_size=4,
                        cut_embed=True,
-                       output_layer_num=1):
+                       output_layer_num=1,
+                       max_tokens=None):
     """Extract embeddings from texts.
 
     :param model: Path to the checkpoint or built model without MLM and NSP.
@@ -152,8 +153,9 @@ def extract_embeddings(model,
     :param cut_embed: The computed embeddings will be cut based on their input lengths.
     :param output_layer_num: The number of layers whose outputs will be concatenated as a single output.
                              Only available when `model` is a path to checkpoint.
+    :param max_tokens: The number of tokens to cut the embedding to, assuming cut_embed is True
     :return: A list of numpy arrays representing the embeddings.
     """
     return [embedding for embedding in extract_embeddings_generator(
-        model, texts, poolings, vocabs, cased, batch_size, cut_embed, output_layer_num
+        model, texts, poolings, vocabs, cased, batch_size, cut_embed, output_layer_num, max_tokens
     )]
